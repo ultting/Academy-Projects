@@ -4,7 +4,7 @@ public class Name extends Person implements Codable{
 
 	@Override
 	public void coding() {
-		
+		System.out.println("¹Ù²î¾ú³ª?");
 	}
 
 }
