@@ -7,44 +7,15 @@
    3. ![image](https://user-images.githubusercontent.com/91230329/150886384-b05574f3-37b4-4254-97af-6a19b4562dd7.png)
   - 스프링 DB연결을 위한 Dependency
   1. DBCP HikariCP
-   <dependency>
-         <groupId>com.zaxxer</groupId>
-         <artifactId>HikariCP</artifactId>
-         <version>3.4.1</version>
-   </dependency>
 
   2. MySQL Driver
-      <dependency>
-          <groupId>mysql</groupId>
-          <artifactId>mysql-connector-java</artifactId>
-          <version>5.1.47</version>
-      </dependency>
-
+    
   3. SqlSessionFactoryBean API(mybatis-spring)
-      <!-- https://mvnrepository.com/artifact/org.mybatis/mybatis-spring -->
-      <dependency>
-          <groupId>org.mybatis</groupId>
-          <artifactId>mybatis-spring</artifactId>
-          <version>1.3.2</version>
-      </dependency>
-
+     
   4. MyBatis(SqlSession..) API(mybatis)
-      <!-- https://mvnrepository.com/artifact/org.mybatis/mybatis -->
-      <dependency>
-          <groupId>org.mybatis</groupId>
-          <artifactId>mybatis</artifactId>
-          <version>3.4.6</version>
-      </dependency>
 
   5. spring-jdbc API
-      <!-- 5. spring-jdbc API -->
-      <!-- https://mvnrepository.com/artifact/org.springframework/spring-jdbc -->
-      <dependency>
-          <groupId>org.springframework</groupId>
-          <artifactId>spring-jdbc</artifactId>
-          <version>4.3.14.RELEASE</version>
-      </dependency>
-
+     
 - Python
   * 웹 크롤링 코드
   * Naver API 활용하여 텍스트 추출 및 영상 합친 뒤 송출
