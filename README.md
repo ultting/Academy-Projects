@@ -1,7 +1,11 @@
 # Academy-Projects
 - Spring ( basic.jsp )
   * 스프링 MVC 패턴으로 만든 동적 웹 게시판
-  
+  - 2가지의 컨트롤러가 존재
+   1. @Controller // 리턴이 2가지 foward -> jsp // redirect -> controller // json
+   2. @RestController ( json 전용 annotation)// 리턴 : json
+   3. ![image](https://user-images.githubusercontent.com/91230329/150886384-b05574f3-37b4-4254-97af-6a19b4562dd7.png)
+
 - Python
   * 웹 크롤링 코드
   * Naver API 활용하여 텍스트 추출 및 영상 합친 뒤 송출
