@@ -14,7 +14,7 @@
 #     name: python3
 # ---
 
-# # 로직 하나로 통합
+# # Naver CLOVA Speech Api
 
 # 형태소 분류 함수
 def lemmatize(word):
@@ -29,6 +29,7 @@ def lemmatize(word):
 from flask import Flask ,render_template,request, redirect
 
 from konlpy.tag import Kkma,Okt, Twitter, Komoran # 형태소 분석 라이브러리
+import kss # 텍스트 문장으로 바꾸는 라이브러리
 from moviepy.editor import * # 영상을 오디오 파일로 변환
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 import moviepy.editor as mp
@@ -36,7 +37,7 @@ from pytube import YouTube # 유튜브 영상 다운로드 또는 불러오기
 import pytube
 import tqdm as tq
 
-import kss # 텍스트 문장으로 바꾸는 라이브러리
+
 import speech_recognition as sr # 오디오 파일 또는 음성을 텍스트로 변환
 import pandas as pd
 import numpy as np
@@ -45,9 +46,6 @@ from sklearn.feature_extraction.text import CountVectorizer
 # 위 도구는 빈도수 기반 벡터화 도구
 import requests
 import json
-# -
-
-yt.title
 
 
 # +
@@ -152,6 +150,7 @@ def result():
         # 영상 제목
         title = yt.title
         
+        # CLOVA Api 는 req관련 코드가 2개가 더 있음
         res = ClovaSpeechClient().req_upload(file='test/data/'+title+'.3gpp', completion='sync')
         #print(res.text)
         
@@ -161,10 +160,8 @@ def result():
 
         # kss 활용 텍스트 문장 화
         word_list = kss.split_sentences(text['text'])
-
-        word_list=word_list[0:5]
+        
         # 문장 끝 마침표 제거
-
         for i in range(len(word_list)):
             word_list[i]=word_list[i].replace('.','')
             
@@ -202,7 +199,7 @@ def result():
             adj_list_last.append(noun_adj_list)
 
         print(adj_list_last)
-        # 형태소 분류
+        # 형태소 분류 Komoran
         for i in range(len(adj_list_last)):
             for j in range(len(adj_list_last[i])):
                 if lemmatize(adj_list_last[i][j]) != None :
@@ -270,35 +267,36 @@ if __name__ == '__main__':
     app.run(host= '61.80.106.115', port=3306)
 # -
 
-# # 테스트
+# # Google Cloud Speech To Text
+
+# + endofcell="--"
 
 
-        # 네이버 api 연동 및 경로 설정
-res = ClovaSpeechClient().req_upload(file='C:/Users/smhrd/Desktop/Machine Learning/test/data/'+title+'.3gpp', completion='sync')
+# 유튜브 영상 다운로드 후 저장
 
-file='C:/Users/smhrd/Desktop/Machine Learning/test/data/'+title+'.3gpp'
-print(yt.title)
+stream = yt.streams.all()[0]
+stream.download(output_path='C:/Users/smhrd/Desktop/Machine Learning/test/data') 
 
+# 영상을 오디오 파일로 변환 
+clip = mp.VideoFileClip("data/[파이썬 기초] NO3 변수.3gpp")
+newsound = clip.subclip("00:00:10","00:01:00") # 20 sec
+newsound.audio.write_audiofile("data/[파이썬 기초] NO3 변수.wav",16000,2,2000,'pcm_s16le')
 
-# +
+# 오디오 파일 로드
+filename = "data/[파이썬 기초] NO3 변수.wav"
 
-# 전체 텍스트를 json 타입 변수에 저장
-# 텍스트 추출
-text = json.loads(res.text)
+# 오디오 파일 텍스트 추출
+text = []
+r = sr.Recognizer()
+with sr.AudioFile(filename) as source:
+    audio_data = r.record(source)
+    text = r.recognize_google(audio_data,language='ko-KR')
+    # print(text)
 
 # kss 활용 텍스트 문장 화
-word_list = kss.split_sentences(text['text'])
+word_list = kss.split_sentences(text)
 
-word_list=word_list[0:5]
-word_list
-
-# 문장 끝 마침표 제거
-
-for i in range(len(word_list)):
-    
-    word_list[i]=word_list[i].replace('.','')
-
-    # 명사만 가져오기 위한 삭제
+# 명사만 가져오기 위한 삭제
 okt = Okt()
 headline = []
 stopwords = [ '의','가','이','은','들','는','좀','잘','걍','과','도','를','으로','자','에','와','등','으로도']
@@ -309,317 +307,352 @@ for sentence in word_list:
     temp = okt.morphs(sentence, stem = True)
     temp = [word for word in temp if not word in stopwords]
     headline.append(temp)
-
-   # konlpy 트위터 이용 형태소 분류
-twitter = Twitter()
-sentences_tag_last=[]
-for word in headline:
-    sentences_tag=[]
-    for i in word :
-        morph = twitter.pos(i)
-        sentences_tag.append(morph)
-    sentences_tag_last.append(sentences_tag)
-
-#  형태소 분류
-adj_list_last=[]
-for ko in sentences_tag_last:
-    noun_adj_list=[]
-    for i in ko:
-        for word, tag in i:
-            if tag in ['Noun','Verb','Number','Adjective','Adverb','Alpha']:
-                noun_adj_list.append(word)
-    adj_list_last.append(noun_adj_list)
-
-print(adj_list_last)
-# 형태소 분류
-for i in range(len(adj_list_last)):
-    for j in range(len(adj_list_last[i])):
-        if lemmatize(adj_list_last[i][j]) != None :
-                adj_list_last[i][j] = lemmatize(adj_list_last[i][j])
-
-arr_list = adj_list_last
-
-wordCount=[]
-for i in range(len(arr_list)):
-    for j in range(len(arr_list[i])):
-        wordCount.append(arr_list[i][j])
-# 영상 합치기
-# 데이터프레임 
-wordData=pd.read_csv('Data_Deep/word_data.csv')
-
-# 데이터프레임에 있는 json 과 단어를 뽑아서 2차원 리스트로 만들기
-wordList = []
-for i in range(len(wordData)):
-    jsonList=[]
-    for j in range(1):
-        jsonList.append(wordData.iloc[i,1])
-        jsonList.append(wordData.iloc[i,2])
-        jsontuple = tuple(jsonList)
-    wordList.append(jsontuple)
-
-# 2차원 리스트 ( wordList )안에 샘플데이터 ( testList ) 가 있는지 확인
-jsonList2 = []
-for i in range(len(wordList)):
-    if wordList[i][0] in wordCount:
-        jsonList2.append(wordList[i][1]) # 맞는 번호의 json파일 
-
-jsonFileName=[]
-json_data=[]
-for i in range(len(jsonList2)):
-    # 3. json파일 오픈
-    jsonMovieData=[]
-    for j in range(1):
-        with open('Data_Deep/3000/'+jsonList2[i],'r',encoding='utf-8') as f:
-            json_data.append(json.load(f))
-            #print(json.dumps(json_data))
-            jsonMovieData.append(json_data[i]['metaData']['name'])
-            jsonMovieData.append(json_data[i]['data'][0]['start'])
-            jsonMovieData.append(json_data[i]['data'][0]['end'])
-    jsonFileName.append(jsonMovieData)
-
-
-clips = []
-try:
-    for i in range(len(jsonFileName)):
-        mov = VideoFileClip('Data_Deep/Wordmp4/real_word_3000/'+jsonFileName[i][0]).subclip(jsonFileName[i][1],jsonFileName[i][2])
-        mov = mov.resize(height=1080,width=1920) # 크기 맞추기
-        clips.append(mov)
-        print('성공')
-except:
-    print('skip')
-print('last',clips)
-
-final_clip = concatenate_videoclips(clips, method='compose')
-final_clip.write_videofile('C:/Users/smhrd/Desktop/JavaScript/TestFlask/src/main/webapp/video/sua7.mp4')
-
-path = 'sua7.mp4'
-
-# +
-wordCount=[]
-for i in range(len(arr_list)):
-    for j in range(len(arr_list[i])):
-        wordCount.append(arr_list[i][j])
-        
-print(wordCount)
-# -
-
-arr_list
-
-# +
-
-# 문장 끝 마침표 제거
-last_list = [] # 문장 하나당 리스트 구축
-for i in range(len(word_list)):
-    last = []
-    last.append(word_list[i].replace('.',''))
-    last_list.append(last)
-
-# 명사만 가져오기 위한 삭제
-okt = Okt()
-headline = []
-stopwords = [ '의','가','이','은','들','는','좀','잘','걍','과','도','를','으로','자','에','와','등','으로도']
-for sentence in word_list:
-    for i in sentence:
-        temp = []
-        # morphs() : 형태소 단위로 토큰화
-        # stem = True : 형태소에서 어간을 추출
-        temp = okt.morphs(i, stem = True)
-        temp = [word for word in temp if not word in stopwords]
-        headline.append(temp)
+    
 
 # konlpy 트위터 이용 형태소 분류
 twitter = Twitter()
-sentences_tag_last=[]
+sentences_tag = []
 for word in headline:
-    sentences_tag=[]
     for i in word :
         morph = twitter.pos(i)
         sentences_tag.append(morph)
-    sentences_tag_last.append(sentences_tag)
+# print(sentences_tag)
 
 # -
 
-yt.streams.all()
+#  형태소 분류
+noun_adj_list=[]
+for i1 in sentences_tag:
+    for word, tag in i1:
+        if tag in ['Noun','Verb','Number','Adjective','Adverb','Alpha']:
+            noun_adj_list.append(word)
+# print(noun_adj_list)
 
-# ### 아래코드는 분할 테스트 및 가독용 코드
-
-for i in range(len(adj_list_last)):
-    print(adj_list_last[i])
-
-# +
 # 형태소 분류
-for i in range(len(adj_list_last)):
-    for j in range(len(adj_list_last[i])):
-        if lemmatize(adj_list_last[i][j]) != None :
-                adj_list_last[i][j] = lemmatize(adj_list_last[i][j])
+for i in range(len(noun_adj_list)):
+    #print(lemmatize(noun_adj_list[i]))
+    if lemmatize(noun_adj_list[i]) != None :
+        noun_adj_list[i] = lemmatize(noun_adj_list[i])
+        #print(noun_adj_list)
 
-arr_list = adj_list_last
-arr_list
-# -
-
-text = json.loads(res.text)
-text['text']
-
-# #  코드 분할
-
-# +
-if __name__ == '__main__':
-    # https://www.youtube.com/watch?v=kFnHWpGs-18  :: 스마트 인재 개발원
-    # https://www.youtube.com/watch?v=lZi3k_GzfCk  :: 서강대 2:25 ~ 4: 10
-    youtube=input('다운로드 받을 유튜브 영상 링크 : ')
-
-    yt = pytube.YouTube(youtube)
-
-    # 유튜브 영상 다운로드 후 저장
-    stream = yt.streams.all()[0]
-    stream.download(output_path='C:/Users/smhrd/Desktop/Machine Learning/test/data') 
-    
-    # 영상 제목
-    title = yt.title
-    # res = ClovaSpeechClient().req_url(url='http://example.com/media.mp3', completion='sync')
-    # res = ClovaSpeechClient().req_object_storage(data_key='data/media.mp3', completion='sync')
-    res = ClovaSpeechClient().req_upload(file='C:/Users/smhrd/Desktop/Machine Learning/test/data/'+title+'.3gpp', completion='sync')
-    #print(res.text)
-    text = json.loads(res.text)
-    # kss 활용 텍스트 문장 화
-    word_list = kss.split_sentences(text['text'])
-    
-    # 명사만 가져오기 위한 삭제
-    okt = Okt()
-    headline = []
-    stopwords = [ '의','가','이','은','들','는','좀','잘','걍','과','도','를','으로','자','에','와','등','으로도']
-    for sentence in word_list:
-        temp = []
-        # morphs() : 형태소 단위로 토큰화
-        # stem = True : 형태소에서 어간을 추출
-        temp = okt.morphs(sentence, stem = True)
-        temp = [word for word in temp if not word in stopwords]
-        headline.append(temp)
-
-    # konlpy 트위터 이용 형태소 분류
-    twitter = Twitter()
-    sentences_tag = []
-    for word in headline:
-        for i in word :
-            morph = twitter.pos(i)
-            sentences_tag.append(morph)
-    # print(sentences_tag)
-    
-    #  형태소 분류
-    noun_adj_list=[]
-    for i1 in sentences_tag:
-        for word, tag in i1:
-            if tag in ['Noun','Verb','Number','Adjective','Adverb','Alpha']:
-                noun_adj_list.append(word)
-    # print(noun_adj_list)
-
-    # 형태소 분류
-    for i in range(len(noun_adj_list)):
-        #print(lemmatize(noun_adj_list[i]))
-        if lemmatize(noun_adj_list[i]) != None :
-            noun_adj_list[i] = lemmatize(noun_adj_list[i])
-            #print(noun_adj_list)
-
-    arr_list = noun_adj_list
-    print(arr_list)
-
-    # 영상합치기 부분으로 넘어가기
-        
-    # 데이터프레임 
-    wordData=pd.read_csv('Data_Deep/word_data.csv')
-    
-    # 데이터프레임에 있는 json 과 단어를 뽑아서 2차원 리스트로 만들기
-    wordList = []
-    for i in range(len(wordData)):
-        jsonList=[]
-        for j in range(1):
-            jsonList.append(wordData.iloc[i,1])
-            jsonList.append(wordData.iloc[i,2])
-            jsontuple = tuple(jsonList)
-        wordList.append(jsontuple)
-        
-    # 2차원 리스트 ( wordList )안에 샘플데이터 ( testList ) 가 있는지 확인
-    jsonList2 = []
-    for i in range(len(wordList)):
-        if wordList[i][0] in testList:
-            #print(wordList[i][0])
-            jsonList2.append(wordList[i][1]) # 맞는 번호의 json파일 
-
-    #print(jsonList2)
-    
-jsonFileName=[]
-json_data=[]
-for i in range(len(jsonlist)):
-    # 3. json파일 오픈
-    jsonMovieData=[]
-    for j in range(1):
-        with open('Data_Deep/3000/'+jsonlist[i],'r',encoding='utf-8') as f:
-            json_data.append(json.load(f))
-            #print(json.dumps(json_data))
-            jsonMovieData.append(json_data[i]['metaData']['name']) # 단어 이름
-            jsonMovieData.append(json_data[i]['data'][0]['start']) # 시작
-            jsonMovieData.append(json_data[i]['data'][0]['end']) # 끝
-    jsonFileName.append(jsonMovieData)
-        
-        
-clips = []
-try:
-    for i in range(len(jsonFileName)):
-        mov = VideoFileClip('Data_Deep/Wordmp4/real_word_3000/'+jsonFileName[i][0]).subclip(jsonFileName[i][1],jsonFileName[i][2])
-        mov = mov.resize(height=1080,width=1920) # 크기 맞추기
-        clips.append(mov)
-        print('성공')
-except:
-    print('skip')
-print('last',clips)
-    
-final_clip = concatenate_videoclips(clips, method='compose')
-final_clip.write_videofile('Success/'+title+'.mp4')
-# -
-
+arr_list = noun_adj_list
 print(arr_list)
-
-
-
-text3= json.loads(res.text)
-text3
-
-listtext3 = kss.split_sentences(text3['text'])
+# --
 
 # +
+# 구글 정확도
+from google.cloud import speech_v1p1beta1 as speech
 
-last3_list=[]
-for i in range(len(listtext3)):
-    last3 = []
-    last3.append(listtext3[i].replace('.',''))
-    last3_list.append(last3)
+client = speech.SpeechClient()
+
+speech_file = "data/hello.wav"
+
+with open(speech_file, "rb") as audio_file:
+    content = audio_file.read()
+
+audio = speech.RecognitionAudio(content=content)
+
+# 현재 코드는 default값을 기준으로 실행시 에러여서 카운트 2가 부여되어 있음
+# audio channel 관련 에러 시 채널 카운트를 2로 줄 것
+config = speech.RecognitionConfig( 
+    encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+    sample_rate_hertz=16000,
+    language_code="ko-KR",
+    enable_word_confidence=True,
+    audio_channel_count = 2
+)
+
+
+response = client.recognize(config=config, audio=audio)
+
+for i, result in enumerate(response.results):
+    alternative = result.alternatives[0]
+    print("-" * 20)
+    print("First alternative of result {}".format(i))
+    print(u"Transcript: {}".format(alternative.transcript))
+    print(
+        u"First Word and Confidence: ({}, {})".format(
+            alternative.words[0].word, alternative.words[0].confidence
+        )
+    )
     
+## First Word and Confidence: (먼저, 0.8410878777503967)
 # -
 
-last3_list
-
-testClip = mp.VideoFileClip('Success/python 02.mp4')
-testClip_resized = testClip.resize(height=360)
-testClip_resized.write_videofile('Success/python 02 resized.mp4')
-
-
+# # 수어 어순 알고리즘 (실패)
 
 # +
-testClips=[]
-mov = VideoFileClip('Success/과정.mp4')
-mov = mov.resize(height=1080,width=1920)
-testClips.append(mov)
-mov2 = VideoFileClip('Success/메신저 (messenger).mp4')
-mov2 = mov2.resize(height=1080,width=1920)
-testClips.append(mov2)
+last_new_word_list = [] # 수어 문장으로 정렬 하는 리스트
+Noun_list=[] # 순서에 맞지 않았을때 값이 들어간 경우 
+Verb_list = [] # 
+del_list=[] # 활용가능성이 없는 단어들
+for i in range(len(word_list_last)):
+    for j in range(len(word_list_last[i])):
+        if word_list_last[i][j][0][1]=='Noun':
+            if len(word_list_last[i][j][0][0])==1:
+                word_list_last[i].pop(j)
+        elif word_list_last[i][j][0][1]=='Verb':
+            if len(word_list_last[i][j][0][0])==1:
+                word_list_last[i].pop(j)
 
-final_clip = concatenate_videoclips(testClips, method='compose')
-final_clip.write_videofile('Success/finalTestClip2.mp4')
+for j in range(len(word_list_last)):
+    new_word_list = [] # 수어 문장으로 정렬 하는 리스트
+    for i in range(len(word_list_last[j])):
+        if word_list_last[j][i][0][1]=='Noun':
+            print(i)
+            Noun_list.append(word_list_last[j][i][0][0])
+            if len(new_word_list) < 3:  # 0,1,2
+                if word_list_last[j][i][0][1]=='Noun':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                elif word_list_last[j][i][0][1]=='Verb':
+                    Verb_list.append(word_list_last[j][i][0][1])
+            elif len(new_word_list) ==3:
+                if word_list_last[j][i][0][1]=='Verb':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue
+
+            if len(new_word_list) > 3 and len(new_word_list) < 7:
+                if word_list_last[j][i][0][1] =='Noun':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+            elif len(new_word_list) ==7:
+                if word_list_last[j][i][0][1]=='Verb':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue
+
+            if len(new_word_list) > 7 and len(new_word_list) < 11:
+                if word_list_last[j][i][0][1] =='Noun':
+                     new_word_list.insert(i,word_list_last[j][i][0][0])
+                elif word_list_last[j][i][0][1] =='Verb':
+                     Verb_list.append(word_list_last[j][i][0][0])
+
+            elif len(new_word_list) ==11:
+                 if word_list_last[j][i][0][1]=='Verb':
+                        new_word_list.insert(i,word_list_last[j][i][0][0])
+                        continue
+
+            if len(new_word_list) > 11 and len(new_word_list) < 15:
+                if word_list_last[j][i][0][1] =='Noun':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                elif word_list_last[j][i][0][1] =='Verb':
+                    Verb_list.append(word_list_last[j][i][0][0])
+
+            elif len(new_word_list) ==15:
+                if word_list_last[j][i][0][1]=='Verb':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue
+
+            if len(new_word_list) > 15 and len(new_word_list) < 19:
+                if word_list_last[j][i][0][1] =='Noun':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                elif word_list_last[j][i][0][1] =='Verb':
+                    Verb_list.append(word_list_last[j][i][0][0])
+
+            elif len(new_word_list) ==19:
+                if word_list_last[j][i][0][1]=='Verb':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue        
+
+        if word_list_last[j][i][0][1] == 'Verb':
+            print(i)
+            if len(new_word_list) < 3:  # 0,1,2
+                if word_list_last[j][i][0][1]=='Noun':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                elif word_list_last[j][i][0][1]=='Verb':
+                    Verb_list.append(word_list_last[j][i][0][0])
+            elif len(new_word_list) ==3:
+                if word_list_last[j][i][0][1]=='Noun':
+                    if i == 1:
+                        del_list.append(word_list_last[j][i][0][0])
+                    else:
+                        print('Verb')
+                        Noun_list.append(word_list_last[j][i][0][0])
+                if word_list_last[j][i][0][1]=='Verb':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue
+
+            if len(new_word_list) > 3 and len(new_word_list) < 7:
+                if word_list_last[j][i][0][1] =='Noun':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+            elif len(new_word_list) ==7:
+                if word_list_last[j][i][0][1]=='Verb':
+                    print(i)
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue
+
+            if len(new_word_list) > 7 and len(new_word_list) < 11:
+                if word_list_last[j][i][0][1] =='Noun':   
+                    new_word_list.insert(word_list_last[j][i][0][0])
+                elif word_list_last[j][i][0][1] =='Verb':
+                    Verb_list.append(word_list_last[j][i][0][0])
+            elif len(new_word_list) ==11:
+                if word_list_last[j][i][0][1]=='Verb':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue
+
+            if len(new_word_list) > 11 and len(new_word_list) < 15:
+                if word_list_last[j][i][0][1] =='Noun':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                elif word_list_last[j][i][0][1] =='Verb':
+                    Verb_list.append(word_list_last[j][i][0][0])
+
+            elif len(new_word_list) ==15:
+                if word_list_last[j][i][0][1]=='Verb':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue     
+
+            if len(new_word_list) > 15 and len(new_word_list) < 19:
+                if word_list_last[j][i][0][1] =='Noun':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                elif word_list_last[j][i][0][1] =='Verb':
+                    Verb_list.append(word_list_last[j][i][0][0])
+
+            elif len(new_word_list) ==19:
+                if word_list_last[j][i][0][1]=='Verb':
+                    new_word_list.insert(i,word_list_last[j][i][0][0])
+                continue
+    
+print(new_word_list)
+print(Noun_list)
+print(del_list)
+print(Verb_list)
+print('Noun / Noun / Verb / Noun / Noun / Verb / Noun / Noun / Verb')
+
+# +
+# 분류 및 정렬
+
+SetNoun_list = set(Noun_list)
+SetNew_word_list = set(new_word_list)
+
+print(SetNoun_list.difference(SetNew_word_list))
+print(new_word_list)
+print(Noun_list)
+print(Verb_list)
+
+
+print(word_list_last[2])
+print(new_word_list)
+
+print(Noun_list)
+print(Verb_list)
+print('우리가 저번 시간까지 해서 매트릭스에 대해서 한번 배워봤는데 오늘 해볼 거는 데이터 프레임에 대해서 한번 배워보도록 하겠습니다')
 # -
 
-print(mov.w)
-print(mov.h)
-print(mov2.w)
-print(mov2.h)
-
-
+if len(new_word_list) > 14 and len(new_word_list) < 17:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==17:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+            
+    if len(new_word_list) > 17 and len(new_word_list) < 20:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==20:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+            
+    if len(new_word_list) > 20 and len(new_word_list) < 23:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==23:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+            
+    if len(new_word_list) > 23 and len(new_word_list) < 26:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==26:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+    
+    if len(new_word_list) > 26 and len(new_word_list) < 29:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==29:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+            
+    if len(new_word_list) > 29 and len(new_word_list) < 32:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==32:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+            
+    if len(new_word_list) > 32 and len(new_word_list) < 35:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==35:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+            
+    if len(new_word_list) > 35 and len(new_word_list) < 38:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==38:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+            
+    if len(new_word_list) > 38 and len(new_word_list) < 41:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==41:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+            
+    if len(new_word_list) > 41 and len(new_word_list) < 44:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==44:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+            
+    if len(new_word_list) > 44 and len(new_word_list) < 47:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==47:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
+            
+    if len(new_word_list) > 47 and len(new_word_list) < 50:
+        if word_list_last[2][i][0][1] =='Noun':
+            new_word_list.insert(i,word_list_last[2][i][0][0])
+        elif word_list_last[2][i][0][1] =='Verb':
+            Verb_list.append(word_list_last[2][i][0][0])
+            
+    if len(new_word_list) ==50:
+        if word_list_last[2][i][0][1]=='Verb':
+            new_word_list.insert(i,word_list_last[2][i][0][0])            
